@@ -18,30 +18,6 @@ for x in my_list:
     if len(x) != 2:
         print(x)  
 
-## Sanity check 2: test if in surroundings/type there are more than 1 entry      
-# Define column names
-colNames = ('store_code','col_name','n_surr')
-
-# Define a dataframe with the required column names
-df_n_surr = pd.DataFrame(columns = colNames)        
-
-for x in my_list:
-    my_surr = json_normalize(x['surroundings'])
-    
-    cols = list(my_surr.columns)
-    #col = 84
-    for col in cols:
-        my_list_l2 = json_normalize(x['surroundings'][col])
-        
-        df_n_surr = df_n_surr.append([{'store_code': x['store_code'],
-                       'col_name' : col,
-                       'n_surr' : my_list_l2.shape[0]}],ignore_index=True) 
-    
-df_n_surr.to_csv("./result dataset/my_surroundings_summary.csv", sep=',', encoding='utf-8')
-
-df_n_surr.n_surr.max() # Out[217]: 60
-
-
 ## Extracting surroundings details
 colNames = ('store_code','col_name','name', 'place_id', 'latitude', 'longitude', 'country', 'postal_code')
 
@@ -54,52 +30,82 @@ for x in my_list:
     cols = list(my_surr.columns)
     #col = 84
     for col in cols:
-        my_list_l2 = json_normalize(x['surroundings'][col])
-        
-        for ii in range(0, len(my_list_l2)):
-            
-            temp = json_normalize(my_list_l2.address_components[ii])
+        my_list_l2 = json_normalize(x['surroundings'][col])      
+    
+        if(len(my_list_l2) != 0):
+              
+                for ii in range(0, len(my_list_l2)):
+                    temp = json_normalize(my_list_l2.address_components[ii])
+                    
+                    postal_code_test = temp.loc[temp['types'].astype(str) == "['postal_code']",'short_name']
+                    
+                    if(len(postal_code_test) != 0):
+                        postal_code = postal_code_test.values[0]
+                    else:
+                        postal_code = np.nan
+                        
+                    country_test = temp.loc[temp['types'].astype(str) == "['country', 'political']",'short_name']
+                    
+                    if(len(country_test) != 0):
+                        country = country_test.values[0]
+                    else:
+                        country = np.nan
+                    
+                    df_out = df_out.append([{'store_code':x['store_code'],
+                                   'col_name' : col,
+                                   'name' : my_list_l2.name[ii],
+                                   'place_id' : my_list_l2.place_id[ii],
+                                   'latitude' : my_list_l2.latitude[ii],
+                                   'longitude' : my_list_l2.longitude[ii],
+                                   'postal_code' : postal_code,
+                                   'country' : country,
+                                   }],ignore_index=True)  
+
+surroundings_details = df_out[['store_code', 'name', 'place_id', 'latitude', 'longitude',
+                        'country', 'postal_code']].drop_duplicates(keep='first')
+
+surroundings_details.to_csv("C:/Users/plgrfer/Google Drive/PMI/UseCase_3_Datasets/surroundings_details.csv",
+                            sep=',', encoding='utf-8')
+
+surroundings_count = df_out[['store_code', 'col_name']].pivot_table(index = 'store_code',
+                           columns = 'col_name', aggfunc = len, fill_value = 0)
+
+surroundings_count.to_csv("C:/Users/plgrfer/Google Drive/PMI/UseCase_3_Datasets/surroundings_count.csv",
+                          sep=',', encoding='utf-8')
+
+repeated_names = surroundings_details.groupby(['name'])['name'].agg(['count'])
+
+repeated_names = repeated_names[(repeated_names['count'] > 1)]
+
+repeated_names.to_csv("C:/Users/plgrfer/Google Drive/PMI/UseCase_3_Datasets/repeated_names.csv",
+                          sep=',', encoding='utf-8')
+
+## extra    
+colNames = ('store_code','col_name','name', 'place_id', 'latitude', 'longitude', 'country', 'postal_code')
+
+# Define a dataframe with the required column names
+df_out = pd.DataFrame(columns = colNames)    
+x = 400
+my_surr = json_normalize(my_list[x]['surroundings'])
+    
+cols = list(my_surr.columns)
+#col = 84
+for col in cols:
+    my_list_l2 = json_normalize(my_list[x]['surroundings'][col])
+
+    if(len(my_list_l2) != 0):
       
-            df_out = df_out.append([{'store_code': x['store_code'],
+        for ii in range(0, len(my_list_l2)):
+            temp = json_normalize(my_list_l2.address_components[ii])      
+            
+            df_out = df_out.append([{'store_code': my_list[x]['store_code'],
                            'col_name' : col,
                            'name' : my_list_l2.name[ii],
                            'place_id' : my_list_l2.place_id[ii],
                            'latitude' : my_list_l2.latitude[ii],
                            'longitude' : my_list_l2.longitude[ii],
-                           'country' : temp[temp['types'].astype(str) =="['postal_code']"]['short_name'],
-                           'postal_code' : temp[temp['types'].astype(str) =="['country', 'political']"]['short_name'],
-                           }],ignore_index=True)   
-
-df_out.to_csv("C:/Users/jgfer/Google Drive/PMI/UseCase_3_Datasets/my_surroundings.csv", sep=',', encoding='utf-8')
-
-
-## extra    
-df = json_normalize(my_list_l2.address_components[ii])
-
-df[df['types'].astype(str) =="['postal_code']"]['short_name']
-
-test.loc[test['types'] == "['postal_code']"]
-    
-test.loc[types == ['postal_code'],'short_name']   
-    
-x = 0
-my_surr = json_normalize(my_list[x]['surroundings'])
-    
-cols = list(my_surr.columns)
-col = 0
-    #for col in cols:
-my_list_l2 = json_normalize(my_list[x]['surroundings'][cols[col]])
-        
-        for ii in range(0, len(my_list_l2)):
-        
-            df_out = df_out.append([{'store_code': my_list[x]['store_code'],
-                           'col_name' : cols[col],
-                           'name' : my_list_l2.name[ii],
-                           'place_id' : my_list_l2.place_id[ii],
-                           'latitude' : my_list_l2.latitude[ii],
-                           'longitude' : my_list_l2.longitude[ii],
-                           'country' : my_list_l2.address_components[ii][5]['short_name'],
-                           'postal_code' : my_list_l2.address_components[ii][6]['short_name'],
+                           'postal_code' : temp.loc[temp['types'].astype(str) == "['postal_code']",'short_name'].values[0],
+                           'country' : temp.loc[temp['types'].astype(str) == "['country', 'political']",'short_name'].values[0]
                            }],ignore_index=True)   
     
     
@@ -297,5 +303,8 @@ len(list(my_surr_restaurant))
 # 'user_ratings_total',     ## Not in accounting
 # 'website']
 
+
+
+    
 
 
